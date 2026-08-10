@@ -17,19 +17,23 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Configurazione Compilatore Web (Emscripten)
-        uses: mymindstorm/setup-emsdk@v14
+        uses: emscripten-core/setup-emsdk@v16
         with:
           version: 'latest'
 
       - name: Compilazione della Build di Sviluppo
         run: |
           mkdir -p dist
+          mkdir -p build_web
+          
+          # Genera un file HTML di test base se non esiste ancora
           if [ -f build_web/index.html ]; then
             cp build_web/index.html dist/index.html
           else
-            echo "<h1>Fabbrica RSDKv5 Web in attesa dell'interfaccia...</h1>" > dist/index.html
+            echo "<h1>Fabbrica RSDKv5 Web attiva! In attesa dell'interfaccia dell'Officina...</h1>" > dist/index.html
           fi
           
+          # Compilazione ufficiale C++ con i trucchi e modloader abilitati
           emcc RSDKv5/main.cpp RSDKv5/*.cpp -O3 \
             -DRETRO_MOD_LOADER=1 \
             -DRETRO_USE_HAPTICS=0 \
