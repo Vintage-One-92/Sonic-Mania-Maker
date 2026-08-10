@@ -1,0 +1,57 @@
+name: Build di Sviluppo RSDKv5 Web
+
+on:
+  push:
+    branches: [ "main", "master" ]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build-wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sincronizzazione Codice Sorgente
+        uses: actions/checkout@v4
+
+      - name: Configurazione Compilatore Web (Emscripten)
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 'latest'
+
+      - name: Compilazione della Build di Sviluppo
+        run: |
+          mkdir -p dist
+          if [ -f build_web/index.html ]; then
+            cp build_web/index.html dist/index.html
+          else
+            echo "<h1>Fabbrica RSDKv5 Web in attesa dell'interfaccia...</h1>" > dist/index.html
+          fi
+          
+          emcc RSDKv5/main.cpp RSDKv5/*.cpp -O3 \
+            -DRETRO_MOD_LOADER=1 \
+            -DRETRO_USE_HAPTICS=0 \
+            -s USE_SDL=2 \
+            -s USE_SDL_IMAGE=2 \
+            -s ALLOW_MEMORY_GROWTH=1 \
+            -s FORCE_FILESYSTEM=1 \
+            -s EXPORTED_FUNCTIONS='["_main", "_malloc"]' \
+            -o dist/index.js
+
+      - name: Preparazione Pacchetto Web
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'dist/'
+
+  deploy-to-pages:
+    needs: build-wasm
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Pubblicazione Sito Web dell'Officina
+        id: deployment
+        uses: actions/deploy-pages@v4
