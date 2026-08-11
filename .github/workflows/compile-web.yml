@@ -1,3 +1,4 @@
+
 name: Build di Sviluppo RSDKv5 Web
 
 on:
@@ -16,11 +17,6 @@ jobs:
       - name: Sincronizzazione Codice Sorgente
         uses: actions/checkout@v4
 
-      - name: Installa Pacchetti Linux Necessari
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libsdl2-dev libsdl2-image-dev
-
       - name: Configurazione Compilatore Web (Emscripten)
         uses: emscripten-core/setup-emsdk@v15
         with:
@@ -31,15 +27,18 @@ jobs:
           mkdir -p dist
           mkdir -p build_web
           
-          # Genera un file HTML temporaneo se manca
+          # Genera la pagina di test se manca
           if [ -f build_web/index.html ]; then
             cp build_web/index.html dist/index.html
           else
             echo "<h1>Fabbrica RSDKv5 Web attiva! In attesa dell'interfaccia...</h1>" > dist/index.html
           fi
           
-          # Ricerca automatica di tutti i file sorgente del motore
-          emcc RSDKv5/*.cpp -O3 \
+          # MAGIA: Trova tutti i file .cpp ovunque siano nascosti nelle cartelle del motore
+          CPPS=$(find RSDKv5 -name "*.cpp")
+          
+          # Compilazione con l'elenco esatto dei file scovati
+          emcc $CPPS -O2 \
             -DRETRO_MOD_LOADER=1 \
             -DRETRO_USE_HAPTICS=0 \
             -s USE_SDL=2 \
