@@ -1,0 +1,60 @@
+name: Officina RSDKv5 Web
+
+on:
+  push:
+    branches: [ "main", "master" ]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build-wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sincronizzazione Codice
+        uses: actions/checkout@v4
+
+      - name: Configurazione Compilatore Web (Emscripten)
+        uses: emscripten-core/setup-emsdk@v15
+        with:
+          version: '3.1.53' # Usiamo una versione fissa ultra-stabile per i porting di giochi
+
+      - name: Compilazione della Fabbrica
+        run: |
+          mkdir -p dist
+          mkdir -p build_web
+          
+          # Genera la pagina dell'interfaccia se manca
+          if [ -f build_web/index.html ]; then
+            cp build_web/index.html dist/index.html
+          else
+            echo "<h1>Fabbrica RSDKv5 Web in ascolto! Pronto per l'interfaccia.</h1>" > dist/index.html
+          fi
+          
+          # Compilazione selettiva mirata solo ai moduli core del motore compatibili col web
+          emcc -O2 RSDKv5/RSDK/Core/RetroEngine.cpp -I RSDKv5/RSDK/ \
+            -DRETRO_MOD_LOADER=1 \
+            -DRETRO_USE_HAPTICS=0 \
+            -s USE_SDL=2 \
+            -s USE_SDL_IMAGE=2 \
+            -s ALLOW_MEMORY_GROWTH=1 \
+            -s FORCE_FILESYSTEM=1 \
+            -o dist/index.js
+
+      - name: Preparazione Pacchetto Web
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'dist/'
+
+  deploy-to-pages:
+    needs: build-wasm
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Pubblicazione Sito Web dell'Officina
+        id: deployment
+        uses: actions/deploy-pages@v4
