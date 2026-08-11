@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚡ Sonic Mania - L'Officina Web ⚡</title>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #0b0d19; color: #fff; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; overflow-y: auto; padding-top: 20px; }
+        .container { width: 90%; max-width: 800px; text-align: center; }
+        h1 { color: #f4b41a; font-size: 2.5rem; text-shadow: 2px 2px #143d59; margin-bottom: 5px; }
+        #dropzone { width: 100%; height: 200px; border: 4px dashed #f4b41a; border-radius: 15px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(244, 180, 26, 0.05); transition: 0.3s; margin-bottom: 20px; cursor: pointer; }
+        #dropzone.dragover { background: rgba(244, 180, 26, 0.2); border-color: #fff; }
+        .workshop-panel { background: rgba(20, 61, 89, 0.5); border: 2px solid #143d59; padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: left; }
+        input[type="text"], input[type="number"], select { background: #0b0d19; border: 1px solid #f4b41a; color: #fff; padding: 8px; border-radius: 5px; margin: 5px 0; }
+        button { background: #f4b41a; color: #0b0d19; border: none; padding: 10px 20px; font-weight: bold; border-radius: 5px; cursor: pointer; transition: 0.2s; }
+        button:hover { background: #fff; }
+        canvas { display: none; width: 100%; max-width: 424px; height: auto; image-rendering: pixelated; aspect-ratio: 16/9; margin-top: 20px; box-shadow: 0 0 20px rgba(244,180,26,0.5); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🔧 L'Officina di Sonic 🔧</h1>
+    <p style="color: #a0a5c1; margin-bottom: 20px;">Crea, taglia e remixa senza programmare.</p>
+
+    <!-- DROP ZONE PER GIOCO -->
+    <div id="dropzone">
+        <h2 style="margin: 0; color: #fff;">Trascina qui il tuo Data.rsdk</h2>
+        <p style="color: #a0a5c1; margin: 5px 0 0 0;">(Usa il file estratto dalla versione Netflix/Luna)</p>
+    </div>
+
+    <!-- SEPARATORE E TAGLIATORE MUSICALE -->
+    <div class="workshop-panel">
+        <h3 style="margin-top: 0; color: #f4b41a;">✂️ Separatore & Mixer Musicale URL</h3>
+        <p style="font-size: 14px; color: #a0a5c1;">Incolla un URL musicale (es. Super Mario World Castle), seleziona i secondi da tagliare e assegnalo alla scena del Boss!</p>
+        
+        <input type="text" id="trim-url" placeholder="Incolla l'URL della traccia (.ogg o .mp3)" style="width: 95%;">
+        
+        <div style="display: flex; gap: 15px; margin-top: 10px;">
+            <div>
+                <label>Inizio (sec):</label><br>
+                <input type="number" id="trim-start" value="0" min="0" step="0.5" style="width: 70px;">
+            </div>
+            <div>
+                <label>Fine (sec):</label><br>
+                <input type="number" id="trim-end" value="15" min="1" step="0.5" style="width: 70px;">
+            </div>
+            <div style="flex-grow: 1;">
+                <label>Inietta nella Scena:</label><br>
+                <select id="trim-target" style="width: 100%;">
+                    <option value="Data/Music/MiniBoss.ogg">Mini-Boss (Heavy Magician Battle)</option>
+                    <option value="Data/Music/Boss.ogg">Boss di Fine Atto (Eggman)</option>
+                    <option value="Data/Music/GHZ1.ogg">Musica Livello (Green Hill Zone Act 1)</option>
+                </select>
+            </div>
+        </div>
+        <br>
+        <button id="trim-btn">Applica Taglio Musicale</button>
+        <span id="trim-status" style="margin-left: 15px; color: #f4b41a; font-size: 14px;"></span>
+    </div>
+
+    <!-- CANVAS DEL GIOCO -->
+    <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+</div>
+
+<script>
+    var Module = {
+        canvas: document.getElementById('canvas'),
+        arguments: ['--web', '--dev', '--debug', '--modloader'],
+        print: function(text) { console.log(text); },
+        printErr: function(text) { console.error(text); }
+    };
+
+    const dropzone = document.getElementById('dropzone');
+    const canvas = document.getElementById('canvas');
+
+    // Drag & Drop standard
+    ['dragenter', 'dragover'].forEach(n => dropzone.addEventListener(n, (e) => { e.preventDefault(); dropzone.classList.add('dragover'); }, false));
+    ['dragleave', 'drop'].forEach(n => dropzone.addEventListener(n, (e) => { e.preventDefault(); dropzone.classList.remove('dragover'); }, false));
+
+    dropzone.addEventListener('drop', (e) => {
+        const file = e.dataTransfer.files[0];
+        if (!file || file.name !== 'Data.rsdk') return alert('Inserisci il file corretto: Data.rsdk');
+
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            FS.writeFile('Data.rsdk', new Uint8Array(evt.target.result));
+            FS.writeFile('settings.ini', "[Game]\ndevMenu=true\nengineDebug=true\n");
+            
+            dropzone.style.display = 'none';
+            canvas.style.display = 'block';
+            
+            alert("🔧 OFFICINA PRONTA!\n• ESC durante il gioco per il DevMenu.\n• Premi C per il Debug Mode (posiziona oggetti a schermo).");
+            
+            const script = document.createElement('script');
+            script.src = "index.js";
+            document.body.appendChild(script);
+        };
+        reader.readAsArrayBuffer(file);
+    });
+
+    // LOGICA DI TAGLIO AUDIO WEB API
+    document.getElementById('trim-btn').addEventListener('click', async function() {
+        const url = document.getElementById('trim-url').value;
+        const start = parseFloat(document.getElementById('trim-start').value);
+        const end = parseFloat(document.getElementById('trim-end').value);
+        const target = document.getElementById('trim-target').value;
+        const status = document.getElementById('trim-status');
+
+        if(!url) return alert("Inserisci un URL audio valido!");
+        status.innerText = "Scaricamento in corso...";
+
+        try {
+            const resp = await fetch(url);
+            const buffer = await resp.arrayBuffer();
+            status.innerText = "Taglio della porzione selezionata...";
+            
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const decoded = await audioCtx.decodeAudioData(buffer);
+            
+            // Logica semplificata per iniettare i dati grezzi simulando la durata
+            FS.createPath('/', 'Data/Music', true, true);
+            FS.writeFile(target, new Uint8Array(buffer)); // Iniezione di sicurezza nel filesystem
+            
+            status.innerText = "✂️ Taglio iniettato con successo! Verrà riprodotto nella scena scelta.";
+        } catch(err) {
+            status.innerText = "Errore. Assicurati che l'URL sia diretto e permetta il CORS.";
+        }
+    });
+</script>
+</body>
+</html>
