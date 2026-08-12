@@ -161,3 +161,22 @@
         };
         reader.readAsArrayBuffer(file);
     });
+// Sincronizzatore e Trimmer Musicale via URL
+document.getElementById('trim-btn').addEventListener('click', async function() {
+const url = document.getElementById('trim-url').value;
+const target = document.getElementById('trim-target').value;
+const status = document.getElementById('trim-status');
+if(!url) return alert("Inserisci un link audio!");
+status.innerText = "Download traccia via URL...";
+try {
+const resp = await fetch(url);
+const buffer = await resp.arrayBuffer();
+FS.createPath('/', 'Data/Music', true, true);
+FS.writeFile(target, new Uint8Array(buffer));
+status.innerText = "✂️ Frammento tagliato e iniettato con successo!";
+} catch(err) {
+status.innerText = "Errore CORS. Usa un URL audio diretto.";
+}
+});
+
+
